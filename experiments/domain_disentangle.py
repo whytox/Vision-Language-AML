@@ -115,9 +115,17 @@ class DomainDisentangleExperiment: # See point 2. of the project
                     accuracy += (pred == y).sum().item()
                     count += x.size(0)
 
-                else : #Proccessing a Target Domain Image
+                elif domain == 1 : #Proccessing a Target Domain Image
                     out = self.model(x,3)
                     loss += self.entropy_criterion(out, d)
+                    pred = torch.argmax(out, dim=-1)
+
+                    accuracy += (pred == d).sum().item()
+                    count += x.size(0)
+
+                else : #Testing
+                    out = self.model(x,1)
+                    loss += self.entropy_criterion(out, y)
                     pred = torch.argmax(out, dim=-1)
 
                     accuracy += (pred == y).sum().item()

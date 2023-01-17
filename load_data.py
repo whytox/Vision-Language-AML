@@ -155,7 +155,7 @@ def build_splits_domain_disentangle(opt):
     
     for category_idx, examples_list in target_examples.items():
         for example in examples_list:
-            test_examples.append([example, category_idx]) # each pair is [path_to_img, class_label]
+            test_examples.append([example, category_idx, 1]) # each pair is [path_to_img, class_label]
     
     # Transforms
     normalize = T.Normalize([0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]) # ResNet18 - ImageNet Normalization
