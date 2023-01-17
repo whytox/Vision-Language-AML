@@ -119,8 +119,8 @@ class DomainDisentangleModel(nn.Module):
             y = self.category_classifier(fds)
         
         elif eq == 5 : #equation (5)
-            fcs = self.category_encoder
-            fds = self.domain_encoder
+            fcs = self.category_encoder(fG)
+            fds = self.domain_encoder(fG)
             y = self.reconstructor(torch.add(fcs, fds))
 
         return y

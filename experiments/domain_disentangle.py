@@ -45,14 +45,14 @@ class DomainDisentangleExperiment: # See point 2. of the project
         return iteration, best_accuracy, total_train_loss
 
     def train_iteration(self, data, domain):
-        x,y = data
+        x,y,d = data
         x = x.to(self.device)
         y = y.to(self.device)
+        d = d.to(self.device)
 
         out_0 = self.model(x,0)
 
         if domain == 0: #Processing a Source Domain Image
-            d = 0
             out_1 = self.model(x,1)
             loss_1 = self.entropy_criterion(out_1, y)
             out_2 = self.model(x,2)
@@ -79,7 +79,6 @@ class DomainDisentangleExperiment: # See point 2. of the project
             return loss.item()
 
         else : #Processing a Target Domain Image
-            d = 1
             out_2 = self.model(x,2)
             loss_2 = - self.entropy_criterion(out_2, d)
             out_3 = self.model(x,3)
@@ -103,9 +102,10 @@ class DomainDisentangleExperiment: # See point 2. of the project
         count = 0
         loss = 0
         with torch.no_grad():
-            for x, y in loader:
+            for x, y, d in loader:
                 x = x.to(self.device)
                 y = y.to(self.device)
+                d = d.to(self.device)
 
                 if domain == 0: #Processing a Source Domain Image
                     out = self.model(x,1)
@@ -117,7 +117,7 @@ class DomainDisentangleExperiment: # See point 2. of the project
 
                 else : #Proccessing a Target Domain Image
                     out = self.model(x,3)
-                    loss += self.entropy_criterion(out, 1)
+                    loss += self.entropy_criterion(out, d)
                     pred = torch.argmax(out, dim=-1)
 
                     accuracy += (pred == y).sum().item()

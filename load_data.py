@@ -25,6 +25,19 @@ class PACSDatasetBaseline(Dataset):
         x = self.transform(Image.open(img_path).convert('RGB'))
         return x, y
 
+class PACSDatasetDomainDisentangle(Dataset):
+    def __init__(self, examples, transform):
+        self.examples = examples
+        self.transform = transform
+
+    def __len__(self):
+        return len(self.examples)
+    
+    def __getitem__(self, index):
+        img_path, y, d = self.examples[index]
+        x = self.transform(Image.open(img_path).convert('RGB'))
+        return x, y, d
+
 def read_lines(data_path, domain_name):
     examples = {}
     with open(f'{data_path}/{domain_name}.txt') as f:
@@ -128,17 +141,17 @@ def build_splits_domain_disentangle(opt):
         split_idx = round(source_category_ratios[category_idx] * val_split_length_source)
         for i, example in enumerate(examples_list):
             if i > split_idx:
-                train_source_examples.append([example, category_idx]) # each pair is [path_to_img, class_label]
+                train_source_examples.append([example, category_idx, 0]) # each pair is [path_to_img, class_label]
             else:
-                val_source_examples.append([example, category_idx]) # each pair is [path_to_img, class_label]
+                val_source_examples.append([example, category_idx, 0]) # each pair is [path_to_img, class_label]
 
     for category_idx, examples_list in target_examples.items():
         split_idx = round(target_category_ratios[category_idx] * val_split_length_target)
         for i, example in enumerate(examples_list):
             if i > split_idx:
-                train_target_examples.append([example, -1]) # each pair is [path_to_img, class_label]
+                train_target_examples.append([example, -1, 1]) # each pair is [path_to_img, class_label]
             else:
-                val_target_examples.append([example, -1]) # each pair is [path_to_img, class_label]
+                val_target_examples.append([example, -1, 1]) # each pair is [path_to_img, class_label]
     
     for category_idx, examples_list in target_examples.items():
         for example in examples_list:
@@ -163,13 +176,13 @@ def build_splits_domain_disentangle(opt):
     ])
 
     # Dataloaders
-    train_source_loader = DataLoader(PACSDatasetBaseline(train_source_examples, train_transform), batch_size=opt['batch_size'], num_workers=opt['num_workers'], shuffle=True)
-    train_target_loader = DataLoader(PACSDatasetBaseline(train_target_examples, train_transform), batch_size=opt['batch_size'], num_workers=opt['num_workers'], shuffle=True)
+    train_source_loader = DataLoader(PACSDatasetDomainDisentangle(train_source_examples, train_transform), batch_size=opt['batch_size'], num_workers=opt['num_workers'], shuffle=True)
+    train_target_loader = DataLoader(PACSDatasetDomainDisentangle(train_target_examples, train_transform), batch_size=opt['batch_size'], num_workers=opt['num_workers'], shuffle=True)
 
-    val_source_loader = DataLoader(PACSDatasetBaseline(val_source_examples, eval_transform), batch_size=opt['batch_size'], num_workers=opt['num_workers'], shuffle=False)
-    val_target_loader = DataLoader(PACSDatasetBaseline(val_target_examples, eval_transform), batch_size=opt['batch_size'], num_workers=opt['num_workers'], shuffle=False)
+    val_source_loader = DataLoader(PACSDatasetDomainDisentangle(val_source_examples, eval_transform), batch_size=opt['batch_size'], num_workers=opt['num_workers'], shuffle=False)
+    val_target_loader = DataLoader(PACSDatasetDomainDisentangle(val_target_examples, eval_transform), batch_size=opt['batch_size'], num_workers=opt['num_workers'], shuffle=False)
 
-    test_loader = DataLoader(PACSDatasetBaseline(test_examples, eval_transform), batch_size=opt['batch_size'], num_workers=opt['num_workers'], shuffle=False)
+    test_loader = DataLoader(PACSDatasetDomainDisentangle(test_examples, eval_transform), batch_size=opt['batch_size'], num_workers=opt['num_workers'], shuffle=False)
 
     return train_source_loader, train_target_loader, val_source_loader, val_target_loader, test_loader
 
