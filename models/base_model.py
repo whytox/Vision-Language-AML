@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 from torchvision.models import resnet18
 
@@ -51,15 +52,75 @@ class DomainDisentangleModel(nn.Module):
         super(DomainDisentangleModel, self).__init__()
         self.feature_extractor = FeatureExtractor()
 
-        self.domain_encoder = None #TODO
-        self.category_encoder = None #TODO
+        self.domain_encoder = nn.Sequential(
+            nn.Linear(512, 512),
+            nn.BatchNorm1d(512),
+            nn.ReLU(),
 
-        self.domain_classifier = None #TODO
-        self.category_classifier = None #TODO
+            nn.Linear(512, 512),
+            nn.BatchNorm1d(512),
+            nn.ReLU(),
 
-        self.reconstructor = None #TODO
-        raise NotImplementedError('[TODO] Implement DomainDisentangleModel')
+            nn.Linear(512, 512),
+            nn.BatchNorm1d(512),
+            nn.ReLU()
+        )
+        self.category_encoder = nn.Sequential(
+            nn.Linear(512, 512),
+            nn.BatchNorm1d(512),
+            nn.ReLU(),
 
-    def forward(self, x):
-        #TODO
-        raise NotImplementedError('[TODO] Implement DomainDisentangleModel forward() method')
+            nn.Linear(512, 512),
+            nn.BatchNorm1d(512),
+            nn.ReLU(),
+
+            nn.Linear(512, 512),
+            nn.BatchNorm1d(512),
+            nn.ReLU()
+        )
+
+        self.domain_classifier = nn.Linear(512, 2)
+        self.category_classifier = nn.Linear(512, 7)
+
+        self.reconstructor = nn.Sequential(
+            nn.Linear(512, 512),
+            nn.BatchNorm1d(512),
+            nn.ReLU(),
+
+            nn.Linear(512, 512),
+            nn.BatchNorm1d(512),
+            nn.ReLU(),
+
+            nn.Linear(512, 512),
+            nn.BatchNorm1d(512),
+            nn.ReLU()
+        )
+
+    def forward(self, x, eq):
+        fG = self.feature_extractor(x)
+
+        if eq == 0:
+            return fG
+
+        elif eq == 1: #equation (1)
+            fcs = self.category_encoder(fG)
+            y = self.category_classifier(fcs)
+        
+        elif eq == 2: #equation (2)
+            fcs = self.category_encoder(fG)
+            y = self.domain_classifier(fcs)
+
+        elif eq == 3: #equation (3)
+            fds = self.domain_encoder(fG)
+            y = self.domain_classifier(fds)
+        
+        elif eq == 4: #equation (4)
+            fds = self.domain_encoder(fG)
+            y = self.category_classifier(fds)
+        
+        elif eq == 5 : #equation (5)
+            fcs = self.category_encoder
+            fds = self.domain_encoder
+            y = self.reconstructor(torch.add(fcs, fds))
+
+        return y
