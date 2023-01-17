@@ -56,11 +56,11 @@ class DomainDisentangleExperiment: # See point 2. of the project
             out_1 = self.model(x,1)
             loss_1 = self.entropy_criterion(out_1, y)
             out_2 = self.model(x,2)
-            loss_2 = - self.entropy_criterion(out_2, d)
+            loss_2 = self.entropy_criterion(out_2, d)
             out_3 = self.model(x,3)
             loss_3 = self.entropy_criterion(out_3, d)
             out_4 = self.model(x,4)
-            loss_4 = - self.entropy_criterion(out_4, y)
+            loss_4 = self.entropy_criterion(out_4, y)
             out_5 = self.model(x,5)
             loss_5 = self.reconstructor_criterion(out_5, out_0)
 
@@ -80,7 +80,7 @@ class DomainDisentangleExperiment: # See point 2. of the project
 
         else : #Processing a Target Domain Image
             out_2 = self.model(x,2)
-            loss_2 = - self.entropy_criterion(out_2, d)
+            loss_2 = self.entropy_criterion(out_2, d)
             out_3 = self.model(x,3)
             loss_3 = self.entropy_criterion(out_3, d)
             out_5 = self.model(x,5)
