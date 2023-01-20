@@ -74,7 +74,7 @@ class DomainDisentangleExperiment: # See point 2. of the project
 
             self.optimizer.step()
 
-            loss = loss_1 + loss_2 + loss_3 + loss_4 + loss_5
+            loss = loss_1 - loss_2 + loss_3 - loss_4 + loss_5
 
             return loss.item()
 
@@ -92,7 +92,7 @@ class DomainDisentangleExperiment: # See point 2. of the project
             loss_3.backward(retain_graph = True)
             loss_5.backward(retain_graph = True)
 
-            loss = loss_2 + loss_3 + loss_5
+            loss = - loss_2 + loss_3 + loss_5
 
             return loss.item()
 
