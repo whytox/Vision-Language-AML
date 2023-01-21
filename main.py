@@ -60,6 +60,7 @@ def main(opt):
                         val_accuracy, val_loss = experiment.validate(validation_loader)
                         logging.info(f'[VAL - {iteration}] Loss: {val_loss} | Accuracy: {(100 * val_accuracy):.2f}')
                         if val_accuracy > best_accuracy:
+                            best_accuracy = val_accuracy
                             experiment.save_checkpoint(f'{opt["output_path"]}/best_checkpoint.pth', iteration, best_accuracy, total_train_loss)
                         experiment.save_checkpoint(f'{opt["output_path"]}/last_checkpoint.pth', iteration, best_accuracy, total_train_loss)
 
@@ -88,6 +89,7 @@ def main(opt):
                         val_accuracy, val_loss = experiment.validate(validation_source_loader, domain=0)
                         logging.info(f'[VAL - {iteration}] Loss: {val_loss} | Accuracy: {(100 * val_accuracy):.2f}')
                         if val_accuracy > best_accuracy:
+                            best_accuracy = val_accuracy
                             experiment.save_checkpoint(f'{opt["output_path"]}/best_checkpoint.pth', iteration, best_accuracy, total_train_loss)
                         experiment.save_checkpoint(f'{opt["output_path"]}/last_checkpoint.pth', iteration, best_accuracy, total_train_loss)
 
@@ -113,6 +115,7 @@ def main(opt):
                         val_accuracy, val_loss = experiment.validate(validation_target_loader, domain=1)
                         logging.info(f'[VAL - {iteration}] Loss: {val_loss} | Accuracy: {(100 * val_accuracy):.2f}')
                         if val_accuracy > best_accuracy:
+                            best_accuracy = val_accuracy
                             experiment.save_checkpoint(f'{opt["output_path"]}/best_checkpoint.pth', iteration, best_accuracy, total_train_loss)
                         experiment.save_checkpoint(f'{opt["output_path"]}/last_checkpoint.pth', iteration, best_accuracy, total_train_loss)
 
