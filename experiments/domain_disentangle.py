@@ -1,6 +1,14 @@
 import torch
 from models.base_model import DomainDisentangleModel
 
+class EntropyLoss(nn.Module):
+    def __init__(self):
+        super(EntropyLoss, self).__init__()
+
+    def forward(self, x):
+        h = -torch.log(x).sum() / x.size(dim=0)
+        return h
+
 class DomainDisentangleExperiment: # See point 2. of the project
     
     def __init__(self, opt):
@@ -18,6 +26,7 @@ class DomainDisentangleExperiment: # See point 2. of the project
         # Setup optimization procedure
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=opt['lr'])
         self.entropy_criterion = torch.nn.CrossEntropyLoss()
+        self.entropy_loss = EntropyLoss()
         self.reconstructor_criterion = torch.nn.MSELoss()
 
     def save_checkpoint(self, path, iteration, best_accuracy, total_train_loss):
@@ -56,31 +65,27 @@ class DomainDisentangleExperiment: # See point 2. of the project
             out_1 = self.model(x,1)
             loss_1 = self.entropy_criterion(out_1, y)
             out_2 = self.model(x,2)
-            loss_2 = self.entropy_criterion(out_2, d)
+            loss_2 = self.entropy_loss(out_2)
             out_3 = self.model(x,3)
             loss_3 = self.entropy_criterion(out_3, d)
             out_4 = self.model(x,4)
-            loss_4 = self.entropy_criterion(out_4, y)
+            loss_4 = self.entropy_loss(out_4)
             out_5 = self.model(x,5)
             loss_5 = self.reconstructor_criterion(out_5, out_0)
 
             self.optimizer.zero_grad()
-            
-            loss_1.backward(retain_graph = True)
-            loss_2.backward(retain_graph = True)
-            loss_3.backward(retain_graph = True)
-            loss_4.backward(retain_graph = True)
-            loss_5.backward(retain_graph = True)
+
+            loss = loss_1 + loss_2 + loss_3 + loss_4 + loss_5
+
+            loss.backward()
 
             self.optimizer.step()
-
-            loss = loss_1 - loss_2 + loss_3 - loss_4 + loss_5
 
             return loss.item()
 
         else : #Processing a Target Domain Image
             out_2 = self.model(x,2)
-            loss_2 = self.entropy_criterion(out_2, d)
+            loss_2 = self.entropy_loss(out_2)
             out_3 = self.model(x,3)
             loss_3 = self.entropy_criterion(out_3, d)
             out_5 = self.model(x,5)
@@ -88,11 +93,11 @@ class DomainDisentangleExperiment: # See point 2. of the project
 
             self.optimizer.zero_grad()
 
-            loss_2.backward(retain_graph = True)
-            loss_3.backward(retain_graph = True)
-            loss_5.backward(retain_graph = True)
+            loss = loss_2 + loss_3 + loss_5
 
-            loss = - loss_2 + loss_3 + loss_5
+            loss.backward()
+
+            self.optimizer.step()
 
             return loss.item()
 
