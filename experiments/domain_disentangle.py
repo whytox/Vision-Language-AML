@@ -1,13 +1,11 @@
 import torch
 from models.base_model import DomainDisentangleModel
 
-class EntropyLoss(nn.Module):
-    def __init__(self):
-        super(EntropyLoss, self).__init__()
-
-    def forward(self, x):
-        h = -torch.log(x).sum() / x.size(dim=0)
-        return h
+def EntropyLoss(x):
+    l = torch.nn.LogSoftmax()
+    s = torch.sum(l(x))
+    h = - s / len(x)
+    return h
 
 class DomainDisentangleExperiment: # See point 2. of the project
     
@@ -26,7 +24,7 @@ class DomainDisentangleExperiment: # See point 2. of the project
         # Setup optimization procedure
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=opt['lr'])
         self.entropy_criterion = torch.nn.CrossEntropyLoss()
-        self.entropy_loss = EntropyLoss()
+        self.entropy_loss = EntropyLoss
         self.reconstructor_criterion = torch.nn.MSELoss()
 
     def save_checkpoint(self, path, iteration, best_accuracy, total_train_loss):
@@ -77,7 +75,7 @@ class DomainDisentangleExperiment: # See point 2. of the project
 
             loss = loss_1 + loss_2 + loss_3 + loss_4 + loss_5
 
-            loss.backward()
+            loss.backward(retain_graph = True)
 
             self.optimizer.step()
 
@@ -95,7 +93,7 @@ class DomainDisentangleExperiment: # See point 2. of the project
 
             loss = loss_2 + loss_3 + loss_5
 
-            loss.backward()
+            loss.backward(retain_graph = True)
 
             self.optimizer.step()
 
