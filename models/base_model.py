@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from torchvision.models import resnet18
+from torch.autograd import Function
 
 class FeatureExtractor(nn.Module):
     def __init__(self):

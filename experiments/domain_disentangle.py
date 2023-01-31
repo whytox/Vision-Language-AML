@@ -1,8 +1,10 @@
 import torch
 from models.base_model import DomainDisentangleModel
+from torch import nn
 from torch.nn import functional as F
 from torch import cat
 import numpy as np
+
 
 class EntropyLoss(nn.Module):
     def __init__(self):
@@ -35,7 +37,7 @@ class DomainDisentangleExperiment:
         self.class_loss_ent = EntropyLoss()
         self.domain_loss_ent = EntropyLoss() 
 
-        self.max_epoch = opt["max_iteration"]
+        self.max_epoch = opt["max_iterations"]
         self.epoch = 0
 
     def train_iteration(self, data):
