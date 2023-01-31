@@ -25,18 +25,29 @@ class PACSDatasetBaseline(Dataset):
         x = self.transform(Image.open(img_path).convert('RGB'))
         return x, y
 
-class PACSDatasetDomainDisentangle(Dataset):
-    def __init__(self, examples, transform):
-        self.examples = examples
+class PACSDatasetDisentangle(Dataset):
+    """A Dataset that is composed both of source and target samples.
+    It returns two elements, one from source and one from target"""
+    
+    def __init__(self, source_samples, target_samples, transform):
+        self.source_samples = source_samples
+        self.target_samples = target_samples
+        self.src_len = len(source_samples)
+        self.trg_len = len(target_samples)
+        self.len = max(self.src_len, self.trg_len)
         self.transform = transform
 
     def __len__(self):
-        return len(self.examples)
+        return self.len
     
     def __getitem__(self, index):
-        img_path, y, d = self.examples[index]
-        x = self.transform(Image.open(img_path).convert('RGB'))
-        return x, y, d
+        img_path_src, y_src = self.source_samples[index % self.src_len]
+        img_path_trg, y_trg = self.target_samples[index % self.trg_len]
+        
+        x_src = self.transform(Image.open(img_path_src).convert('RGB'))
+        x_trg = self.transform(Image.open(img_path_trg).convert('RGB'))
+
+        return x_src, y_src, x_trg, y_trg
 
 def read_lines(data_path, domain_name):
     examples = {}
@@ -112,12 +123,16 @@ def build_splits_baseline(opt):
     return train_loader, val_loader, test_loader
 
 def build_splits_domain_disentangle(opt):
+    """Return DataLoaders for the domain disentangle experiment."""
     source_domain = 'art_painting'
-    target_domain = opt['target_domain']
-
+    target_domain = 'cartoon'
+    # how to split the samples??
+    # since the target is used at traing time without the label
+    # it makes sense to use it as the test set...
+    # I will ask the professor
     source_examples = read_lines(opt['data_path'], source_domain)
     target_examples = read_lines(opt['data_path'], target_domain)
-
+    
     # Compute ratios of examples for each category
     source_category_ratios = {category_idx: len(examples_list) for category_idx, examples_list in source_examples.items()}
     source_total_examples = sum(source_category_ratios.values())
@@ -131,32 +146,31 @@ def build_splits_domain_disentangle(opt):
     val_split_length_source = source_total_examples * 0.2 # 20% of the training split used for validation
     val_split_length_target = target_total_examples * 0.2 # 20% of the training split used for validation
 
-    train_source_examples = []
-    train_target_examples = []
-    val_source_examples = []
-    val_target_examples =[]
-    test_examples = []
+    source_samples = []
+    target_samples = []
+    val_samples = []
+    test_samples = []
 
     for category_idx, examples_list in source_examples.items():
         split_idx = round(source_category_ratios[category_idx] * val_split_length_source)
         for i, example in enumerate(examples_list):
             if i > split_idx:
-                train_source_examples.append([example, category_idx, 0]) # each pair is [path_to_img, class_label]
+                source_samples.append([example, category_idx]) 
             else:
-                val_source_examples.append([example, category_idx, 0]) # each pair is [path_to_img, class_label]
+                val_samples.append([example, category_idx]) 
 
     for category_idx, examples_list in target_examples.items():
         split_idx = round(target_category_ratios[category_idx] * val_split_length_target)
         for i, example in enumerate(examples_list):
             if i > split_idx:
-                train_target_examples.append([example, -1, 1]) # each pair is [path_to_img, class_label]
+                target_samples.append([example, category_idx]) 
             else:
-                val_target_examples.append([example, -1, 1]) # each pair is [path_to_img, class_label]
+                val_samples.append([example, category_idx]) 
     
     for category_idx, examples_list in target_examples.items():
         for example in examples_list:
-            test_examples.append([example, category_idx, 1]) # each pair is [path_to_img, class_label]
-    
+            test_samples.append([example, category_idx]) 
+
     # Transforms
     normalize = T.Normalize([0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]) # ResNet18 - ImageNet Normalization
 
@@ -174,17 +188,12 @@ def build_splits_domain_disentangle(opt):
         T.ToTensor(),
         normalize
     ])
-
     # Dataloaders
-    train_source_loader = DataLoader(PACSDatasetDomainDisentangle(train_source_examples, train_transform), batch_size=opt['batch_size'], num_workers=opt['num_workers'], shuffle=True)
-    train_target_loader = DataLoader(PACSDatasetDomainDisentangle(train_target_examples, train_transform), batch_size=opt['batch_size'], num_workers=opt['num_workers'], shuffle=True)
+    train_loader = DataLoader(PACSDatasetDisentangle(source_samples, target_samples, train_transform), batch_size=32, num_workers=1, shuffle=True)
+    val_loader = DataLoader(PACSDatasetBaseline(val_samples, eval_transform), batch_size=32, num_workers=1, shuffle=False)
+    test_loader = DataLoader(PACSDatasetBaseline(test_samples, eval_transform), batch_size=32, num_workers=1, shuffle=False)
 
-    val_source_loader = DataLoader(PACSDatasetDomainDisentangle(val_source_examples, eval_transform), batch_size=opt['batch_size'], num_workers=opt['num_workers'], shuffle=False)
-    val_target_loader = DataLoader(PACSDatasetDomainDisentangle(val_target_examples, eval_transform), batch_size=opt['batch_size'], num_workers=opt['num_workers'], shuffle=False)
-
-    test_loader = DataLoader(PACSDatasetDomainDisentangle(test_examples, eval_transform), batch_size=opt['batch_size'], num_workers=opt['num_workers'], shuffle=False)
-
-    return train_source_loader, train_target_loader, val_source_loader, val_target_loader, test_loader
+    return train_loader, val_loader, test_loader
 
 def build_splits_clip_disentangle(opt):
     raise NotImplementedError('[TODO] Implement build_splits_clip_disentangle') #TODO
