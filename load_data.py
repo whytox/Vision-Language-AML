@@ -125,7 +125,7 @@ def build_splits_baseline(opt):
 def build_splits_domain_disentangle(opt):
     """Return DataLoaders for the domain disentangle experiment."""
     source_domain = 'art_painting'
-    target_domain = 'cartoon'
+    target_domain = opt['target_domain']
     # how to split the samples??
     # since the target is used at traing time without the label
     # it makes sense to use it as the test set...
