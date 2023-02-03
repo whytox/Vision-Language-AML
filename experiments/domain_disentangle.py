@@ -41,11 +41,6 @@ class DomainDisentangleExperiment:
         self.epoch = 0
 
     def train_iteration(self, data):
-        p = self.epoch / self.max_epoch
-        alpha = 2. / (1. + np.exp(-10 * p)) - 1
-        self.epoch += 1
-
-        alpha = torch.Tensor([alpha]).to(self.device)
         src_img, src_y, trg_img, _ = data
  
         src_img = src_img.to(self.device)
