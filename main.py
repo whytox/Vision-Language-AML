@@ -21,7 +21,8 @@ def setup_experiment(opt):
     elif opt['experiment'] == 'clip_disentangle':
         experiment = CLIPDisentangleExperiment(opt)
         train_loader, validation_loader, test_loader = build_splits_clip_disentangle(opt)
-
+        return experiment, train_loader, val_loader, test_loader
+        
     else:
         raise ValueError('Experiment not yet supported.')
     

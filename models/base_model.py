@@ -152,3 +152,100 @@ class DomainDisentangleModel(nn.Module):
         #print("OK 10")
 
         return class_output, domain_output, features, reconstructed_features, class_output_ds, domain_output_cs
+
+class CLIPDomainDisentangleModel(nn.Module):
+    def __init__(self):
+        super(CLIPDomainDisentangleModel, self).__init__()
+        self.feature_extractor = FeatureExtractor()
+
+        # domain encoder
+        # output features used to discriminate the domain
+        self.domain_encoder = nn.Sequential(
+            nn.Linear(512, 512),
+            nn.BatchNorm1d(512),
+            nn.ReLU(),
+
+            nn.Linear(512, 512),
+            nn.BatchNorm1d(512),
+            nn.ReLU(),
+
+            nn.Linear(512, 256), # changed 512 to 256
+            nn.BatchNorm1d(256), # changed 512 to 256
+            nn.ReLU()
+        )
+
+        # category encoder
+        # return features used to discriminate the input category
+        self.category_encoder = nn.Sequential(
+            nn.Linear(512, 512),
+            nn.BatchNorm1d(512),
+            nn.ReLU(),
+
+            nn.Linear(512, 512),
+            nn.BatchNorm1d(512),
+            nn.ReLU(),
+
+            nn.Linear(512, 256), # changed 512 to 256
+            nn.BatchNorm1d(256), # changed 512 to 256
+            nn.ReLU()
+        )
+
+        # domain classifier
+        self.domain_classifier = nn.Sequential(nn.Linear(256, 64), nn.LeakyReLU(),
+                                               nn.Linear(64, 2), nn.Softmax())
+
+        # category classifier
+        self.category_classifier = nn.Sequential(nn.Linear(256, 7), nn.BatchNorm1d(7), nn.Softmax())
+
+        #CLIP linear layer
+        self.clip_layer = nn.Linear(512, 256)
+
+        # reconstructor
+        self.reconstructor = nn.Sequential(
+            nn.Linear(512, 512),
+            nn.BatchNorm1d(512),
+            nn.ReLU(),
+
+            nn.Linear(512, 512),
+            nn.BatchNorm1d(512),
+            nn.ReLU(),
+
+            nn.Linear(512, 512),
+            nn.BatchNorm1d(512),
+            nn.ReLU()
+        )
+
+    def forward(self, x, descr, alpha, train):
+
+        features = self.feature_extractor(x)
+        #print("OK 1")
+        f_cs = self.category_encoder(features)
+        #print("OK 2")
+        f_ds = self.domain_encoder(features)
+        #print("OK 3")
+        reconstructed_features = self.reconstructor(torch.cat((f_cs, f_ds), 1))
+        #print("OK 4")
+        class_output = self.category_classifier(f_cs)
+        #print("OK 5")
+        domain_output = self.domain_classifier(f_ds)
+        #print("OK 6")
+        # in order to compute the gradient reverse 
+        # we let the features pass from the GradientReversal layer first
+        
+        reverse_grad_f_cs = GradientReversal.apply(f_cs, alpha)
+        #print("OK 7")
+        #print("OK 8")
+        reverse_grad_f_ds = GradientReversal.apply(f_ds, alpha)
+        class_output_ds = self.category_classifier(reverse_grad_f_ds)
+
+        #print("OK 9")
+        domain_output_cs = self.domain_classifier(reverse_grad_f_cs)
+        #print("OK 10")
+
+        if train:
+            out = self.clip_layer(descr)
+
+            return class_output, domain_output, features, reconstructed_features, class_output_ds, domain_output_cs, out, f_ds
+        else :
+            return class_output, domain_output, features, reconstructed_features, class_output_ds, domain_output_cs
+        
