@@ -41,87 +41,32 @@ class DomainDisentangleExperiment:
         self.epoch = 0
 
     def train_iteration(self, data):
-        src_img, src_y, trg_img, _ = data
- 
-        src_img = src_img.to(self.device)
-        src_y = src_y.to(self.device)
+        x_src, y_src, x_trg, _ = data
+        x_src, y_src, x_trg = x_src.to(self.device), y_src.to(self.device), x_trg.to(self.device)
 
-        trg_img = trg_img.to(self.device)
+        x = torch.cat((x_src, x_trg), dim=0)
         
+        src_dom_label = torch.zeros(x_src.size(0)).long()
+        src_dom_label = src_dom_label.to(self.device)
+        trg_dom_label = torch.ones(x_trg.size(0)).long()
+        trg_dom_label = trg_dom_label.to(self.device)
+        dom_label     = torch.cat((src_dom_label, trg_dom_label), 0)
         self.optimizer.zero_grad()
 
-        # Processing a Source Domain Image
-        # src_class_out, src_domain_out, src_features_out, src_reconstructor_out = self.model(src_img)
-        src_class_output, src_domain_output, src_features, src_reconstructed_features, src_class_output_ds, src_domain_output_cs = self.model(src_img, alpha)
-        _, trg_domain_output, trg_features, trg_reconstructed_features, trg_class_output_ds, trg_domain_output_cs = self.model(trg_img, alpha)
+        cat, dom, feat, rec_feat, cat_ds, dom_cs = self.model(x)
 
-        # source class loss
-        src_loss_class = self.class_loss(src_class_output, src_y)
-        #print(src_loss_class)
-        # source domain loss
-        # create the expected domain output for source
-        # src_domain = 0, so creata a tensor of n=batch_size elements
-        src_domain_label = torch.zeros(src_img.shape[0]).long().to(self.device)
-
-        # target domain loss
-        trg_domain_label = torch.ones(trg_img.shape[0]).long().to(self.device)
-
-        tot_loss_domain = self.domain_loss(cat((src_domain_output, trg_domain_output), dim=0), cat((src_domain_label, trg_domain_label), dim=0))
-        #print(src_loss_domain)
-        #print("OK src loss domain")
-
-        # source reconstructor loss
-        src_loss_rec = self.reconstructor_loss(src_reconstructed_features, src_features)
-        # target reconstructor loss
-        trg_loss_rec = self.reconstructor_loss(trg_reconstructed_features, trg_features)
-
-        tot_loss_rec = (src_loss_rec + trg_loss_rec) / 2
-        #print(src_loss_rec)
-        # entropy loss of class output w.r.t. domain specific features
-        src_loss_class_ent = self.class_loss_ent(src_class_output_ds)
-        #print(src_loss_class_ent)
-        #print("src ent loss cla", src_loss_class_ent)
-
-
-        # entropy loss of domain output w.r.t. class specific features
-        #src_loss_domain_ent = self.domain_loss_ent(src_domain_output_cs)
-        # compute the domain entropy loss w.r.t. category specific features
-        #trg_loss_domain_ent = self.domain_loss_ent(trg_domain_output_cs)
-
-        tot_loss_domain_ent = self.domain_loss_ent(cat((src_domain_output_cs, trg_domain_output_cs), dim=0))
-
-        #print(src_loss_domain_ent)
-        #print("src ent loss dom", src_loss_class_ent)
-
-        #tot_src_loss = src_loss_class + src_loss_domain + src_loss_rec + src_loss_domain_ent + src_loss_class_ent
-
-        #print("OK tot loss source")
-        # Processing a Target Domain Image
-        # exlucding the class loss
-
-
-        # n.b.: we do not compute the class loss for the target domains images
-
-
+        cat_loss     = self.cross_ent_loss(cat[:x_src.size(0)], y_src)
+        dom_loss     = self.cross_ent_loss(dom, dom_label)
+        cat_ent_loss =   self.entropy_loss(cat_ds)
+        dom_ent_loss =  self.entropy_loss(dom_cs) 
+        rec_loss     = self.reconstructor_loss(rec_feat, feat) 
         
-        tot_loss = (0.4 * src_loss_class) + (0.09 * tot_loss_domain) + (0.02 * tot_loss_rec) + (0.4 * src_loss_class_ent) + (0.09 * tot_loss_domain_ent)
-
-        
-
-        #print("trg loss dom ent", trg_loss_domain)
-        # compute the class entropy loss w.r.t. domain specific features
-        # we can still compute it since this loss doesn't require the ground truth to be computed ?? ASK
-        #trg_loss_class_ent = self.class_loss_ent(trg_class_output_ds)
-        #print("trg loss class ent", trg_loss_class_ent)
-
-        #tot_trg_loss = trg_loss_domain + trg_loss_rec + trg_loss_domain_ent #+ trg_loss_class_ent
-        # compute the final loss and backward it
-        #tot_loss = tot_src_loss + tot_trg_loss
+        tot_loss = 0.4 * cat_loss + 0.09 * dom_loss + 0.01 * rec_loss + 0.4 * cat_ent_loss + 0.090 * dom_ent_loss 
         tot_loss.backward()
         self.optimizer.step()
+        
         return tot_loss.item()
 
-    # move the checkpoint methods in an abstract class
     def save_checkpoint(self, path, iteration, best_accuracy, total_train_loss):
         checkpoint = {}
 
@@ -152,13 +97,12 @@ class DomainDisentangleExperiment:
         count = 0
         loss = 0
 
-        alpha = torch.Tensor(1).to(self.device)
         with torch.no_grad():
             for x, y in loader:
                 x = x.to(self.device)
                 y = y.to(self.device)
 
-                logits = self.model(x, alpha)[0]
+                logits = self.model(x)[0]
                 loss += self.class_loss(logits, y)
                 pred = torch.argmax(logits, dim=-1)
 
