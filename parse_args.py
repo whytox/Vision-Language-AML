@@ -4,7 +4,7 @@ import torch
 def parse_arguments():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--experiment', type=str, default='baseline', choices=['baseline', 'domain_disentangle', 'clip_disentangle'])
+    parser.add_argument('--experiment', type=str, default='baseline', choices=['baseline', 'domain_disentangle', 'clip_disentangle', 'baseline_dg', 'domain_disentangle_dg', 'clip_disentangle_dg'])
 
     parser.add_argument('--target_domain', type=str, default='cartoon', choices=['art_painting', 'cartoon', 'sketch', 'photo'])
     parser.add_argument('--lr', type=float, default=1e-4, help='Learning rate.')

@@ -23,6 +23,16 @@ def setup_experiment(opt):
         train_loader, val_loader, test_loader = build_splits_clip_disentangle(opt)
         return experiment, train_loader, val_loader, test_loader
 
+    elif opt['experiment'] == 'baseline_dg':
+        raise ValueError('Eperiment not yet supported.')
+
+    elif opt['experiment']  == 'domain_disentangle_dg':
+            raise ValueError('Eperiment not yet supported.')
+
+
+    elif opt['experiment']  == 'clip_disentangle_dg':
+            raise ValueError('Eperiment not yet supported.')
+    
     else:
         raise ValueError('Experiment not yet supported.')
     
