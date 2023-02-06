@@ -343,3 +343,67 @@ def build_splits_clip_disentangle(opt):
     test_loader = DataLoader(PACSDatasetBaseline(test_samples, eval_transform), batch_size=32, num_workers=1, shuffle=False)
 
     return train_loader, val_loader, test_loader
+
+class PACSDatasetCLIPDG(Dataset):
+    def __init__(self, examples, transform):
+        self.examples = examples
+        self.transform = transform
+
+    def __len__(self):
+        return len(self.examples)
+
+    def __getitem__(self, index):
+        img_path, y, desc, dom = self.examples[index]
+        x = self.transform(Image.open(img_path).convert('RGB'))
+        return x, y, desc, dom
+
+def build_splits_clip_disentangle_dg(opt):
+    target_domain = opt['target_domain']
+    source_domains = DOMAINS.copy()
+    source_domains.remove(target_domain)
+
+    training_examples = []
+    val_examples = []
+
+    for d, domain in enumerate(source_domains):
+        source_examples = read_lines_clip(opt['data_path'], domain)
+        source_category_ratios = {category_idx: len(examples_list) for category_idx, examples_list in source_examples.items()}
+        source_total_examples = sum(source_category_ratios.values())
+        source_category_ratios = {category_idx: c / source_total_examples for category_idx, c in source_category_ratios.items()}
+        val_split_length_source = source_total_examples * 0.2
+        for category_idx, examples_list in source_examples.items():
+            split_idx = round(source_category_ratios[category_idx] * val_split_length_source)
+            for i, example in enumerate(examples_list):
+                if i > split_idx:
+                    training_examples.append([example['image_name'], category_idx, ' '.join(example['descriptions']),  d]) 
+                else:
+                    val_examples.append([example['image_name'], category_idx])         
+
+    target_examples = read_lines(opt['data_path'], target_domain)
+    test_examples = []
+    for category_idx, examples_list in target_examples.items():
+        for example in examples_list:
+            test_examples.append([example, category_idx])
+
+    normalize = T.Normalize([0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]) # ResNet18 - ImageNet Normalization
+
+    train_transform = T.Compose([
+        T.Resize(256),
+        T.RandAugment(3, 15),
+        T.CenterCrop(224),
+        T.ToTensor(),
+        normalize
+    ])
+
+    eval_transform = T.Compose([
+        T.Resize(256),
+        T.CenterCrop(224),
+        T.ToTensor(),
+        normalize
+    ])
+    # Dataloaders
+    train_loader = DataLoader(PACSDatasetCLIPDG(training_examples, train_transform), batch_size=opt['batch_size'], num_workers=1, shuffle=True)
+    val_loader = DataLoader(PACSDatasetBaseline(val_examples, eval_transform), batch_size=opt['batch_size'], num_workers=1, shuffle=False)
+    test_loader = DataLoader(PACSDatasetBaseline(test_examples, eval_transform), batch_size=opt['batch_size'], num_workers=1, shuffle=False)
+
+    return train_loader, val_loader, test_loader
